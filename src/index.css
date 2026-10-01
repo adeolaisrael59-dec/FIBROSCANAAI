@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg-app: #f3f6f9;
+  --color-sidebar: #ffffff;
+  --color-primary-app: #2563eb;
+  --color-accent-app: #3b82f6;
+  --color-text-main: #1e293b;
+  --color-text-muted: #64748b;
+  --color-success-app: #10b981;
+  --color-border-app: #e2e8f0;
+  
+  --shadow-sleek: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  
+  --font-sans: 'Helvetica Neue', Arial, sans-serif;
+}

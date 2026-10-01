@@ -1,0 +1,6 @@
+{
+  "name": "FibroScan AI",
+  "description": "Medical decision-support system for detecting uterine fibroids in 2D ultrasound images using AI-powered vision analysis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

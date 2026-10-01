@@ -1,0 +1,167 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Catch-all deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function getUserData(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data;
+    }
+
+    function getUserRole(uid) {
+      return getUserData(uid).role;
+    }
+
+    function isSystemAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == "stu-du297adeola@dui.edu.ng" ||
+        request.auth.token.email == "adeolaisrael59@gmail.com" ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         getUserRole(request.auth.uid) == 'system_admin')
+      );
+    }
+
+    function isHospitalAdmin(hospitalId) {
+      return isSignedIn() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        getUserRole(request.auth.uid) == 'hospital_admin' && 
+        getUserData(request.auth.uid).hospitalId == hospitalId;
+    }
+
+    function isClinician(hospitalId) {
+      return isSignedIn() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        getUserRole(request.auth.uid) == 'clinician' && 
+        getUserData(request.auth.uid).hospitalId == hospitalId;
+    }
+
+    function isAuthorizedInHospital(hospitalId) {
+      return isSystemAdmin() || isHospitalAdmin(hospitalId) || isClinician(hospitalId);
+    }
+
+    match /{path=**}/scans/{scanId} {
+      allow read: if isSignedIn();
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && (
+        // Self access
+        request.auth.uid == userId ||
+        
+        // System admin check
+        isSystemAdmin() ||
+        
+        // Admin or staff of the same hospital
+        (resource.data.hospitalId != null && 
+         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hospitalId == resource.data.hospitalId)
+      );
+
+      allow create: if isSignedIn() && request.auth.uid == userId;
+
+      allow update: if isSignedIn() && (
+        request.auth.uid == userId || 
+        isSystemAdmin() ||
+        (resource.data.hospitalId != null && 
+         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'hospital_admin' &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hospitalId == resource.data.hospitalId)
+      );
+
+      allow delete: if isSystemAdmin();
+    }
+
+    match /hospitals/{hospitalId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if isSystemAdmin() || isHospitalAdmin(hospitalId);
+      allow delete: if isSystemAdmin();
+    }
+
+    match /patients/{patientId} {
+      allow read: if isSignedIn() && (
+        isSystemAdmin() ||
+        (patientId == request.auth.uid) ||
+        (resource.data.hospitalId != null && 
+         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hospitalId == resource.data.hospitalId) ||
+        (resource.data.reviewRequestedHospitalId != null && 
+         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hospitalId == resource.data.reviewRequestedHospitalId)
+      );
+
+      allow create: if isSignedIn() && (
+        (patientId == request.auth.uid) ||
+        (request.resource.data.hospitalId != null && 
+         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hospitalId == request.resource.data.hospitalId)
+      );
+
+      allow update: if isSignedIn() && (
+        isSystemAdmin() ||
+        (patientId == request.auth.uid) ||
+        (resource.data.hospitalId != null && 
+         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hospitalId == resource.data.hospitalId) ||
+        (patientId == request.auth.uid && request.resource.data.reviewRequestedHospitalId != null)
+      );
+
+      allow delete: if isSystemAdmin() || (
+        resource.data.hospitalId != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'hospital_admin' &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hospitalId == resource.data.hospitalId
+      );
+
+      match /scans/{scanId} {
+        allow read: if isSignedIn() && (
+          isSystemAdmin() ||
+          (patientId == request.auth.uid) ||
+          (exists(/databases/$(database)/documents/patients/$(patientId)) && (
+            (get(/databases/$(database)/documents/patients/$(patientId)).data.hospitalId != null && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hospitalId == get(/databases/$(database)/documents/patients/$(patientId)).data.hospitalId) ||
+            (get(/databases/$(database)/documents/patients/$(patientId)).data.reviewRequestedHospitalId != null && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hospitalId == get(/databases/$(database)/documents/patients/$(patientId)).data.reviewRequestedHospitalId)
+          ))
+        );
+
+        allow create, update: if isSignedIn() && (
+          (patientId == request.auth.uid) ||
+          (exists(/databases/$(database)/documents/patients/$(patientId)) && 
+           get(/databases/$(database)/documents/patients/$(patientId)).data.hospitalId != null && 
+           exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hospitalId == get(/databases/$(database)/documents/patients/$(patientId)).data.hospitalId)
+        );
+
+        allow delete: if isSystemAdmin() || (
+          exists(/databases/$(database)/documents/patients/$(patientId)) && 
+          get(/databases/$(database)/documents/patients/$(patientId)).data.hospitalId != null && 
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'hospital_admin' &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hospitalId == get(/databases/$(database)/documents/patients/$(patientId)).data.hospitalId
+        );
+      }
+    }
+
+    match /audit_logs/{logId} {
+      allow read: if isSignedIn() && (
+        isSystemAdmin() ||
+        (resource.data.hospitalId != null && 
+         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.hospitalId == resource.data.hospitalId)
+      );
+      allow create: if isSignedIn();
+      allow update, delete: if isSystemAdmin();
+    }
+  }
+}

@@ -1,0 +1,119 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with role-based access control",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["system_admin", "hospital_admin", "clinician", "individual_patient"] },
+        "hospitalId": { "type": "string", "description": "Linked hospital ID, where applicable" },
+        "status": { "type": "string", "enum": ["active", "pending", "deactivated"] },
+        "phone": { "type": "string" },
+        "dob": { "type": "string" },
+        "gender": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastLoginAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role", "status", "createdAt"]
+    },
+    "Hospital": {
+      "title": "Hospital",
+      "description": "Registered hospital or clinic profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "cityState": { "type": "string" },
+        "medicalLicense": { "type": "string" },
+        "adminName": { "type": "string" },
+        "adminEmail": { "type": "string", "format": "email" },
+        "joinCode": { "type": "string", "description": "Unique 6-character clinician joining code" },
+        "status": { "type": "string", "enum": ["active", "pending", "deactivated"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "email", "medicalLicense", "joinCode", "status", "createdAt"]
+    },
+    "Patient": {
+      "title": "Patient",
+      "description": "Patient medical record linked to a hospital or personal account",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "patientId": { "type": "string" },
+        "hospitalId": { "type": "string", "description": "ID of hospital, or 'personal' if individual" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "age": { "type": "number" },
+        "gender": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastExam": { "type": "string", "format": "date-time" },
+        "reviewRequestedHospitalId": { "type": "string", "description": "Hospital selected for sharing scan reviews" }
+      },
+      "required": ["id", "patientId", "hospitalId", "name", "createdBy", "createdAt"]
+    },
+    "Scan": {
+      "title": "Scan",
+      "description": "Ultrasound scan analysis results",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "patientId": { "type": "string" },
+        "patientName": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "detections": { "type": "array" },
+        "summary": { "type": "string" },
+        "recommendation": { "type": "string" },
+        "clinicianId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "patientId", "imageUrl", "clinicianId", "timestamp"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Audit trail log of clinical and platform activities",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "hospitalId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" },
+        "patientId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "hospitalId", "userId", "userName", "action", "details", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile with role-based access control"
+    },
+    "/hospitals/{hospitalId}": {
+      "schema": "Hospital",
+      "description": "Hospital or clinic profiles"
+    },
+    "/patients/{patientId}": {
+      "schema": "Patient",
+      "description": "Patient records"
+    },
+    "/patients/{patientId}/scans/{scanId}": {
+      "schema": "Scan",
+      "description": "Historical scans for a patient"
+    },
+    "/audit_logs/{logId}": {
+      "schema": "AuditLog",
+      "description": "System-wide activity log"
+    }
+  }
+}
